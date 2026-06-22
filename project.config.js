@@ -38,6 +38,14 @@ module.exports = {
       statuses: ['待处理', '修复中', '已补齐', '确认为遗失'],
       required: ['tourBoxId', 'itemType', 'itemName', 'problem'],
       titleFields: ['itemName', 'problem']
+    },
+    playChecklists: {
+      label: '剧目演出清单',
+      defaultStatus: '启用',
+      statuses: ['启用', '停用', '修订中'],
+      required: ['playName'],
+      titleFields: ['playName'],
+      defaults: { standardRoles: [], requiredAccessories: [] }
     }
   },
   seed: [
@@ -66,11 +74,25 @@ module.exports = {
         play: '火焰山',
         boxNo: '配件箱-02'
       }
+    },
+    {
+      collection: 'playChecklists',
+      id: 'play-checklist-seed-1',
+      status: '启用',
+      data: {
+        playName: '火焰山',
+        standardRoles: ['孙悟空', '唐僧', '猪八戒', '沙僧', '铁扇公主', '牛魔王'],
+        requiredPuppetHeadCount: 6,
+        requiredAccessories: ['红缨冠', '金箍棒', '僧帽', '袈裟', '九齿钉耙', '月牙铲', '芭蕉扇'],
+        remarks: '经典剧目，偶头需重点维护，铁扇公主和牛魔王为主要反派角色。'
+      },
+      note: '初始种子数据'
     }
   ],
   examples: [
     'GET /api/puppetHeads?play=火焰山&status=可演出 查询某剧目可用偶头',
     'POST /api/tourBoxes 创建巡演装箱单',
-    'POST /api/lossReports 登记返场缺损或遗失'
+    'POST /api/lossReports 登记返场缺损或遗失',
+    'GET /api/playChecklists?playName=火焰山 按剧目名称查询演出清单'
   ]
 };
