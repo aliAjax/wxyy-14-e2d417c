@@ -188,6 +188,101 @@ function applyQuery(records, query) {
 
 initDb();
 
+app.post('/api/packing-check', (req, res, next) => {
+  try {
+    const { play, headIds = [], accessoryIds = [] } = req.body;
+    if (!play) {
+      return res.status(400).json({ error: 'missing required field: play' });
+    }
+
+    const usableHeadStatuses = ['可演出', '试演中', '已装箱'];
+    const usableAccessoryStatuses = ['在库', '已装箱'];
+
+    const unusableHeads = [];
+    const unfoundHeadIds = [];
+    const coveredRoles = new Set();
+    const headMap = new Map();
+
+    for (const headId of headIds) {
+      const head = loadRecord('puppetHeads', headId);
+      if (!head) {
+        unfoundHeadIds.push(headId);
+        continue;
+      }
+      headMap.set(headId, head);
+      if (!usableHeadStatuses.includes(head.status)) {
+        unusableHeads.push({
+          id: headId,
+          role: head.role || '',
+          play: head.play || '',
+          status: head.status,
+          reason: '偶头状态为\'' + head.status + '\'，不可演出'
+        });
+      } else {
+        if (head.role) coveredRoles.add(head.role);
+      }
+    }
+
+    const missingAccessories = [];
+    const unfoundAccessoryIds = [];
+    const coveredAccessoryNames = new Set();
+
+    for (const accId of accessoryIds) {
+      const acc = loadRecord('accessories', accId);
+      if (!acc) {
+        unfoundAccessoryIds.push(accId);
+        continue;
+      }
+      if (!usableAccessoryStatuses.includes(acc.status)) {
+        missingAccessories.push({
+          id: accId,
+          name: acc.name || '',
+          role: acc.role || '',
+          play: acc.play || '',
+          status: acc.status,
+          reason: '配件状态为\'' + acc.status + '\'，不在库'
+        });
+      } else {
+        if (acc.name) coveredAccessoryNames.add(acc.name);
+      }
+    }
+
+    const checklistRows = select(
+      'SELECT * FROM records WHERE collection = \'playChecklists\' AND title LIKE ' + sqlValue('%' + play + '%') + ';'
+    ).map(toRecord);
+    const checklist = checklistRows.find((c) => c.playName === play);
+
+    const requiredItemsMissing = { roles: [], accessories: [] };
+
+    if (checklist) {
+      const standardRoles = checklist.standardRoles || [];
+      const requiredAccessories = checklist.requiredAccessories || [];
+      requiredItemsMissing.roles = standardRoles.filter((r) => !coveredRoles.has(r));
+      requiredItemsMissing.accessories = requiredAccessories.filter((a) => !coveredAccessoryNames.has(a));
+    }
+
+    const hasIssues =
+      unusableHeads.length > 0 ||
+      missingAccessories.length > 0 ||
+      unfoundHeadIds.length > 0 ||
+      unfoundAccessoryIds.length > 0 ||
+      requiredItemsMissing.roles.length > 0 ||
+      requiredItemsMissing.accessories.length > 0;
+
+    res.json({
+      play,
+      unusableHeads,
+      missingAccessories,
+      unfoundHeadIds,
+      unfoundAccessoryIds,
+      requiredItemsMissing,
+      canProceed: !hasIssues
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: config.title, port: PORT });
 });

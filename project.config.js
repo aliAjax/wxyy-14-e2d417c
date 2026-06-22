@@ -93,6 +93,7 @@ module.exports = {
     'GET /api/puppetHeads?play=火焰山&status=可演出 查询某剧目可用偶头',
     'POST /api/tourBoxes 创建巡演装箱单',
     'POST /api/lossReports 登记返场缺损或遗失',
-    'GET /api/playChecklists?playName=火焰山 按剧目名称查询演出清单'
+    'GET /api/playChecklists?playName=火焰山 按剧目名称查询演出清单',
+    'POST /api/packing-check {play,headIds,accessoryIds} 装箱预检'
   ]
 };
