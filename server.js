@@ -188,6 +188,151 @@ function applyQuery(records, query) {
 
 initDb();
 
+app.post('/api/returnCountDrafts/:id/confirm', (req, res, next) => {
+  try {
+    const draft = loadRecord('returnCountDrafts', req.params.id);
+    if (!draft) return res.status(404).json({ error: '草稿不存在' });
+    if (draft.status !== '草稿') return res.status(400).json({ error: '草稿已确认，不可重复提交' });
+
+    const tourBox = loadRecord('tourBoxes', draft.tourBoxId);
+    if (!tourBox) return res.status(400).json({ error: '关联的巡演装箱单不存在' });
+
+    const headChecks = draft.headChecks || [];
+    const accessoryChecks = draft.accessoryChecks || [];
+    const generatedReports = [];
+
+    for (const check of headChecks) {
+      if (!check.problem || !check.problem.trim()) continue;
+      const head = loadRecord('puppetHeads', check.headId);
+      const reportData = {
+        tourBoxId: draft.tourBoxId,
+        itemType: '偶头',
+        itemId: check.headId,
+        itemName: check.role || (head ? head.role : '') || check.headId,
+        problem: check.problem,
+        checker: draft.checker,
+        draftId: draft.id
+      };
+      const reportConfig = findCollection('lossReports');
+      const reportStatus = reportConfig.defaultStatus || '待处理';
+      reportData.status = reportStatus;
+      validate(reportConfig, reportData);
+      const reportId = randomUUID();
+      const createdAt = now();
+      runSql(
+        'INSERT INTO records (id, collection, status, title, data, created_at, updated_at) VALUES (' +
+        [
+          sqlValue(reportId),
+          sqlValue('lossReports'),
+          sqlValue(reportStatus),
+          sqlValue(titleFor(reportConfig, reportData)),
+          sqlValue(JSON.stringify(reportData)),
+          sqlValue(createdAt),
+          sqlValue(createdAt)
+        ].join(', ') +
+        ');'
+      );
+      insertEvent({
+        recordId: reportId,
+        collection: 'lossReports',
+        action: '返场清点登记',
+        status: reportStatus,
+        actor: draft.checker,
+        note: '从返场清点草稿' + draft.id + '生成',
+        data: reportData
+      });
+      generatedReports.push({ id: reportId, itemType: '偶头', itemName: reportData.itemName, problem: check.problem });
+    }
+
+    for (const check of accessoryChecks) {
+      if (!check.problem || !check.problem.trim()) continue;
+      const acc = loadRecord('accessories', check.accessoryId);
+      const reportData = {
+        tourBoxId: draft.tourBoxId,
+        itemType: '配件',
+        itemId: check.accessoryId,
+        itemName: check.name || (acc ? acc.name : '') || check.accessoryId,
+        problem: check.problem,
+        checker: draft.checker,
+        draftId: draft.id
+      };
+      const reportConfig = findCollection('lossReports');
+      const reportStatus = reportConfig.defaultStatus || '待处理';
+      reportData.status = reportStatus;
+      validate(reportConfig, reportData);
+      const reportId = randomUUID();
+      const createdAt = now();
+      runSql(
+        'INSERT INTO records (id, collection, status, title, data, created_at, updated_at) VALUES (' +
+        [
+          sqlValue(reportId),
+          sqlValue('lossReports'),
+          sqlValue(reportStatus),
+          sqlValue(titleFor(reportConfig, reportData)),
+          sqlValue(JSON.stringify(reportData)),
+          sqlValue(createdAt),
+          sqlValue(createdAt)
+        ].join(', ') +
+        ');'
+      );
+      insertEvent({
+        recordId: reportId,
+        collection: 'lossReports',
+        action: '返场清点登记',
+        status: reportStatus,
+        actor: draft.checker,
+        note: '从返场清点草稿' + draft.id + '生成',
+        data: reportData
+      });
+      generatedReports.push({ id: reportId, itemType: '配件', itemName: reportData.itemName, problem: check.problem });
+    }
+
+    const draftData = { ...draft };
+    delete draftData.id;
+    delete draftData.collection;
+    delete draftData.createdAt;
+    delete draftData.updatedAt;
+    draftData.status = '已确认';
+    saveRecord('returnCountDrafts', draft.id, draftData, '已确认');
+    insertEvent({
+      recordId: draft.id,
+      collection: 'returnCountDrafts',
+      action: '确认提交',
+      status: '已确认',
+      actor: draft.checker,
+      note: '生成' + generatedReports.length + '条缺损追踪记录',
+      data: { generatedReportCount: generatedReports.length, generatedReports }
+    });
+
+    if (tourBox.status !== '已闭环') {
+      const tourBoxData = { ...tourBox };
+      delete tourBoxData.id;
+      delete tourBoxData.collection;
+      delete tourBoxData.createdAt;
+      delete tourBoxData.updatedAt;
+      tourBoxData.status = '返场清点中';
+      saveRecord('tourBoxes', tourBox.id, tourBoxData, '返场清点中');
+      insertEvent({
+        recordId: tourBox.id,
+        collection: 'tourBoxes',
+        action: '返场清点',
+        status: '返场清点中',
+        actor: draft.checker,
+        note: '返场清点草稿' + draft.id + '已提交，发现' + generatedReports.length + '项问题',
+        data: { draftId: draft.id, issueCount: generatedReports.length }
+      });
+    }
+
+    res.json({
+      draft: loadRecord('returnCountDrafts', draft.id),
+      generatedReports,
+      generatedReportCount: generatedReports.length
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/packing-check', (req, res, next) => {
   try {
     const { play, headIds = [], accessoryIds = [] } = req.body;

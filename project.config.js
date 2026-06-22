@@ -46,6 +46,14 @@ module.exports = {
       required: ['playName'],
       titleFields: ['playName'],
       defaults: { standardRoles: [], requiredAccessories: [] }
+    },
+    returnCountDrafts: {
+      label: '返场清点草稿',
+      defaultStatus: '草稿',
+      statuses: ['草稿', '已确认'],
+      required: ['tourBoxId', 'checker'],
+      titleFields: ['tourBoxId', 'checker'],
+      defaults: { headChecks: [], accessoryChecks: [], notes: '' }
     }
   },
   seed: [
@@ -94,6 +102,9 @@ module.exports = {
     'POST /api/tourBoxes 创建巡演装箱单',
     'POST /api/lossReports 登记返场缺损或遗失',
     'GET /api/playChecklists?playName=火焰山 按剧目名称查询演出清单',
-    'POST /api/packing-check {play,headIds,accessoryIds} 装箱预检'
+    'POST /api/packing-check {play,headIds,accessoryIds} 装箱预检',
+    'POST /api/returnCountDrafts 创建返场清点草稿',
+    'POST /api/returnCountDrafts/{id}/confirm 确认提交返场清点草稿并生成缺损记录',
+    'GET /api/returnCountDrafts/{id}/timeline 查询返场清点草稿时间线'
   ]
 };

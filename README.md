@@ -55,4 +55,97 @@ Content-Type: application/json
 DELETE /api/playChecklists/{id}
 ```
 
+## 返场清点草稿示例
+
+### 创建返场清点草稿
+草稿保存后不改变原有资产状态，仅记录清点内容。
+
+```bash
+POST /api/returnCountDrafts
+Content-Type: application/json
+
+{
+  "tourBoxId": "tour-box-id-123",
+  "checker": "张三",
+  "headChecks": [
+    {
+      "headId": "head-seed-1",
+      "role": "武生",
+      "play": "火焰山",
+      "checked": true,
+      "problem": "左颊掉彩，开口机关偏紧"
+    },
+    {
+      "headId": "head-ok-1",
+      "role": "孙悟空",
+      "play": "火焰山",
+      "checked": true,
+      "problem": ""
+    }
+  ],
+  "accessoryChecks": [
+    {
+      "accessoryId": "accessory-seed-1",
+      "name": "红缨冠",
+      "role": "武生",
+      "play": "火焰山",
+      "checked": true,
+      "problem": "红缨有脱落"
+    }
+  ],
+  "notes": "巡演返场清点，发现2项问题"
+}
+```
+
+### 确认提交草稿
+确认提交后，所有带问题的项将生成缺损追踪记录，草稿状态变为"已确认"，不可重复提交。
+
+```bash
+POST /api/returnCountDrafts/{draftId}/confirm
+```
+
+返回示例：
+```json
+{
+  "draft": { ... },
+  "generatedReports": [
+    {
+      "id": "loss-report-id-1",
+      "itemType": "偶头",
+      "itemName": "武生",
+      "problem": "左颊掉彩，开口机关偏紧"
+    },
+    {
+      "id": "loss-report-id-2",
+      "itemType": "配件",
+      "itemName": "红缨冠",
+      "problem": "红缨有脱落"
+    }
+  ],
+  "generatedReportCount": 2
+}
+```
+
+### 查询草稿时间线
+查看草稿的创建、更新、确认提交等历史记录。
+
+```bash
+GET /api/returnCountDrafts/{draftId}/timeline
+```
+
+### 更新草稿（仅草稿状态可修改）
+```bash
+PATCH /api/returnCountDrafts/{draftId}
+Content-Type: application/json
+
+{
+  "notes": "补充：道具箱也有磕碰痕迹"
+}
+```
+
+### 查询某巡演装箱单的所有返场清点草稿
+```bash
+GET /api/returnCountDrafts?tourBoxId={tourBoxId}
+```
+
 SQLite数据库文件会在首次启动时创建到`data/app.db`。
