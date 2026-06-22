@@ -195,8 +195,8 @@ app.post('/api/packing-check', (req, res, next) => {
       return res.status(400).json({ error: 'missing required field: play' });
     }
 
-    const usableHeadStatuses = ['可演出', '试演中', '已装箱'];
-    const usableAccessoryStatuses = ['在库', '已装箱'];
+    const usableHeadStatuses = ['可演出'];
+    const usableAccessoryStatuses = ['在库'];
 
     const unusableHeads = [];
     const unfoundHeadIds = [];
