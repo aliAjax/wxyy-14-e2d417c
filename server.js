@@ -73,6 +73,14 @@ function validate(collectionConfig, data) {
   }
 }
 
+function ensureCanEditRecord(collection, record) {
+  if (collection === 'returnCountDrafts' && record.status === '已确认') {
+    const error = new Error('返场清点草稿已确认，不可再修改');
+    error.status = 400;
+    throw error;
+  }
+}
+
 function insertEvent({ recordId, collection, action, status, actor, note, data }) {
   runSql(
     'INSERT INTO events (id, record_id, collection, action, status, actor, note, data, created_at) VALUES (' +
@@ -508,6 +516,7 @@ app.patch('/api/:collection/:id', (req, res, next) => {
     findCollection(req.params.collection);
     const record = loadRecord(req.params.collection, req.params.id);
     if (!record) return res.status(404).json({ error: 'not found' });
+    ensureCanEditRecord(req.params.collection, record);
     const nextData = { ...record, ...req.body };
     delete nextData.id;
     delete nextData.collection;
@@ -536,6 +545,7 @@ app.post('/api/:collection/:id/events', (req, res, next) => {
     const collectionConfig = findCollection(req.params.collection);
     const record = loadRecord(req.params.collection, req.params.id);
     if (!record) return res.status(404).json({ error: 'not found' });
+    ensureCanEditRecord(req.params.collection, record);
     const status = req.body.status || record.status;
     if (collectionConfig.statuses && !collectionConfig.statuses.includes(status)) {
       return res.status(400).json({ error: 'invalid status: ' + status });
